@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id             Int              @id @default(autoincrement())
+  email          String           @unique
+  password       String
+  name           String?
+  role           String           @default("SISWA")
+  courses        Course[]         // Relasi sebagai instruktur
+  enrollments    Enrollment[]
+  
+  lessonProgress LessonProgress[] // <-- TAMBAHAN BARU
+}
+
+model Course {
+  id           Int          @id @default(autoincrement())
+  title        String       // Judul kursus
+  description  String       // Deskripsi singkat materi
+  level        String       // Contoh: "Pemula", "Menengah", "Mahir"
+  imageUrl     String?      // Link gambar thumbnail
+  instructor   User         @relation(fields: [instructorId], references: [id])
+  instructorId Int
+  createdAt    DateTime     @default(now())
+  
+  lessons      Lesson[]     
+  enrollments  Enrollment[]
+}
+
+// TABEL BARU: Untuk menyimpan data materi/modul pembelajaran
+model Lesson {
+  id             Int              @id @default(autoincrement())
+  title          String           // Judul modul (misal: "Modul 1: Pengantar HTML")
+  videoUrl       String?          // Link video YouTube (opsional)
+  content        String?          // Teks bacaan materi (opsional)
+  order          Int              // Urutan materi (1, 2, 3, dst)
+  
+  courseId       Int
+  // onDelete: Cascade berarti jika Kursus dihapus, semua materinya ikut terhapus otomatis
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  createdAt      DateTime         @default(now())
+  
+  lessonProgress LessonProgress[] // <-- TAMBAHAN BARU
+}
+
+// TABEL BARU: Mencatat pendaftaran siswa ke sebuah kursus
+model Enrollment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  courseId  Int
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Memastikan 1 siswa hanya bisa mendaftar 1 kali di kursus yang sama
+  @@unique([userId, courseId]) 
+}
+
+// TABEL BARU: Mencatat materi yang sudah diselesaikan siswa
+model LessonProgress {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  lessonId  Int
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  // Memastikan 1 siswa hanya bisa mencetak skor selesai 1 kali per materi
+  @@unique([userId, lessonId])
+}
